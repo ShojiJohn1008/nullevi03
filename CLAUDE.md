@@ -16,6 +16,16 @@ TELEGRAM_BOT_TOKEN=... TELEGRAM_CHAT_ID=... ./boot.sh
 - 初回起動と再起動の各イベントを Telegram にプッシュ通知する (`notify_telegram` 関数)。
 - `-c` フラグで前回セッションを継続するため、会話状態は Claude Code 側のセッション履歴に依存する。
 
+## 朝のブリーフィング
+
+```sh
+TELEGRAM_BOT_TOKEN=... TELEGRAM_CHAT_ID=... [BRIEFING_LOCATION=Tokyo] ./briefing.sh
+```
+
+- `briefing.sh` は cron から毎朝実行する想定。`claude -p` (ヘッドレス・単発セッション、`-c` なし) で `prompts/briefing.md` の指示に従いブリーフィング文を生成し、Telegram Bot API で送信する。boot.sh の常駐セッションとは独立して動く。
+- ブリーフィングの内容 (日付・天気・TODO・ひとこと) は `prompts/briefing.md` で定義する。出力は Telegram 1 メッセージに収まるよう 1500 文字以内・プレーンテキスト縛り。
+- `memory/todo.md` は秘書の永続メモリ。ブリーフィングで読み上げるほか、Telegram での会話中に「TODO に追加して」と頼まれたらこのファイルに追記する。セッションの要約・圧縮をまたいで残したい情報はここに書く。
+
 ## 必須の前提
 
 - Claude Code が CLI として導入されていること (Max プラン等の課金が前提と README に記載)。
