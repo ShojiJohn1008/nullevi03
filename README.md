@@ -61,6 +61,44 @@ launchctl start com.naruebi.briefing
 - ブリーフィングの中身は `prompts/briefing.md` を編集して調整する
 - TODO は `memory/todo.md` に書いておくと読み上げてくれる。Telegram で「TODO に〇〇追加して」と頼んでもいい
 
+## メール要約
+
+特定の送信者からの新着メール (本文 + PDF/Excel/CSV 添付) を読んで、要点を毎朝 Telegram に送る。読み取り専用でメールは既読にも変更もしない。
+
+```sh
+./mail_summary.sh
+```
+
+### 準備 (Gmail 側)
+
+1. Google アカウントで **2段階認証を ON** にする
+2. [アプリパスワード](https://myaccount.google.com/apppasswords) を1つ発行する
+3. `.env` に設定を追記する (`GMAIL_APP_PASSWORD` は**空白を詰めて**書く):
+
+```
+GMAIL_ADDRESS=you@gmail.com
+GMAIL_APP_PASSWORD=abcdefghijklmnop
+MAIL_SENDERS=boss@example.com,info@example.com
+MAIL_LOOKBACK_DAYS=3
+```
+
+Excel (.xlsx) を読むには一度だけ `pip3 install pandas openpyxl` しておく (PDF/CSV は不要)。
+
+### 自動実行 (macOS / launchd)
+
+朝のブリーフィング (7:00) の少し後、7:05 に動かす例:
+
+```sh
+cp launchd/com.naruebi.mailsummary.plist.example ~/Library/LaunchAgents/com.naruebi.mailsummary.plist
+sed -i '' "s#__REPO_DIR__#$(pwd)#g" ~/Library/LaunchAgents/com.naruebi.mailsummary.plist
+launchctl load ~/Library/LaunchAgents/com.naruebi.mailsummary.plist
+launchctl start com.naruebi.mailsummary   # 時刻を待たず即テスト
+```
+
+- 対象送信者は `.env` の `MAIL_SENDERS` (カンマ区切りで複数可)
+- 要約のしかたは `prompts/mail_summary.md` を編集して調整する
+- 一度要約したメールは `mail_state.txt` に記録され、翌朝重複して拾わない
+
 ## トラブルシューティング
 
 - AIに聞け！俺には聞くな！！

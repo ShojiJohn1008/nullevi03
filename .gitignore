@@ -3,3 +3,8 @@
 
 # ログ
 briefing.log
+mail_summary.log
+
+# メール取得の作業ディレクトリと処理済み記録 (メール本文・添付が入るので必ず除外)
+mail_work/
+mail_state.txt

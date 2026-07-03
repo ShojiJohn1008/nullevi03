@@ -27,6 +27,19 @@ TELEGRAM_BOT_TOKEN=... TELEGRAM_CHAT_ID=... [BRIEFING_LOCATION=Tokyo] ./briefing
 - ブリーフィングの内容 (日付・天気・TODO・ひとこと) は `prompts/briefing.md` で定義する。出力は Telegram 1 メッセージに収まるよう 1500 文字以内・プレーンテキスト縛り。
 - `memory/todo.md` は秘書の永続メモリ。ブリーフィングで読み上げるほか、Telegram での会話中に「TODO に追加して」と頼まれたらこのファイルに追記する。セッションの要約・圧縮をまたいで残したい情報はここに書く。
 
+## メール要約
+
+```sh
+./mail_summary.sh
+```
+
+- 特定の送信者からの新着メール (本文 + PDF/Excel/CSV 添付) を要約して Telegram に送る。朝のブリーフィングの少し後 (例 7:05) に launchd/cron から実行する想定。
+- `fetch_mail.py` (Python 標準ライブラリのみ) が Gmail に **IMAP + アプリパスワード**で接続し、対象メールと添付を `mail_work/` に保存する。`imap.select("INBOX", readonly=True)` で開くのでメールを既読にも変更もしない。OAuth (Google Cloud) を避けて設定を最小化するための選択。
+- 認証等は `.env` から読む: `GMAIL_ADDRESS` / `GMAIL_APP_PASSWORD` / `MAIL_SENDERS` (カンマ区切り) / `MAIL_LOOKBACK_DAYS` (既定3)。`GMAIL_APP_PASSWORD` は Google が空白区切りで表示するが、`.env` では**空白を詰めて**書く (空白を残すと `.env` の source が壊れる)。`fetch_mail.py` 側でも空白は除去している。
+- `mail_summary.sh` が `fetch_mail.py` → `claude -p` (`prompts/mail_summary.md` の指示で要約) → Telegram 送信、の順で動く。対象メール 0 件なら claude を呼ばずに「新着なし」を送って終了する。
+- 処理済みメールは `mail_state.txt` (Message-ID を記録、git 管理外) で重複を防ぐ。`mail_work/` にはメール本文・添付が入るので `.gitignore` 済み。**この2つは絶対にコミットしない**。
+- Excel (.xlsx) の読み取りには pandas / openpyxl が必要 (`pip3 install pandas openpyxl`)。PDF は claude が直接読め、CSV はテキストとして読める。
+
 ### 定時実行のスケジューラ
 
 - **macOS は launchd (`launchd/com.naruebi.briefing.plist.example`) を使う**。cron は「ログインセッション外で動くためキーチェーンの `claude` ログイン (`/login` で保存した OAuth 情報) を読めない → `Invalid API key`」「スリープ中は発火しない」という制約があり、朝のブリーフィングには不向き。LaunchAgent はログインセッション内で動くためキーチェーンにアクセスでき、スリープからの復帰時にも実行される。
