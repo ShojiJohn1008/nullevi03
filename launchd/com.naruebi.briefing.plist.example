@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  macOS 用 LaunchAgent: 毎朝 7:00 に briefing.sh を実行する。
+
+  cron と違い、ログインセッション内で動くのでキーチェーンの
+  claude ログイン情報を読める。またスリープで時刻を逃しても
+  復帰時に実行される。
+
+  導入手順:
+    1. __REPO_DIR__ を briefing.sh のある絶対パスに全置換する。
+       例:  sed -i '' 's#__REPO_DIR__#/Users/あなた/nullevi03#g' \
+              ~/Library/LaunchAgents/com.naruebi.briefing.plist
+    2. ~/Library/LaunchAgents/ に配置してロードする:
+         cp launchd/com.naruebi.briefing.plist.example \
+            ~/Library/LaunchAgents/com.naruebi.briefing.plist
+         # (上の sed でパス置換)
+         launchctl load ~/Library/LaunchAgents/com.naruebi.briefing.plist
+    3. すぐ動作確認 (時刻を待たず即実行):
+         launchctl start com.naruebi.briefing
+
+  TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID はここには書かない。
+  リポジトリ内の .env に置けば briefing.sh が読み込む。
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.naruebi.briefing</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/sh</string>
+        <string>__REPO_DIR__/briefing.sh</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>__REPO_DIR__</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    </dict>
+
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>7</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+
+    <key>StandardOutPath</key>
+    <string>__REPO_DIR__/briefing.log</string>
+    <key>StandardErrorPath</key>
+    <string>__REPO_DIR__/briefing.log</string>
+
+    <key>RunAtLoad</key>
+    <false/>
+</dict>
+</plist>

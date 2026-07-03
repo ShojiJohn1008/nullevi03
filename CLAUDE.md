@@ -22,9 +22,17 @@ TELEGRAM_BOT_TOKEN=... TELEGRAM_CHAT_ID=... ./boot.sh
 TELEGRAM_BOT_TOKEN=... TELEGRAM_CHAT_ID=... [BRIEFING_LOCATION=Tokyo] ./briefing.sh
 ```
 
-- `briefing.sh` は cron から毎朝実行する想定。`claude -p` (ヘッドレス・単発セッション、`-c` なし) で `prompts/briefing.md` の指示に従いブリーフィング文を生成し、Telegram Bot API で送信する。boot.sh の常駐セッションとは独立して動く。
+- `briefing.sh` は毎朝定時に実行する想定。`claude -p` (ヘッドレス・単発セッション、`-c` なし) で `prompts/briefing.md` の指示に従いブリーフィング文を生成し、Telegram Bot API で送信する。boot.sh の常駐セッションとは独立して動く。
+- 設定値 (`TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID` / `BRIEFING_LOCATION`) は同ディレクトリの `.env` から読み込む (無ければ環境変数)。`.env` は `.gitignore` 済みで、秘密情報をリポジトリや crontab/plist に書かずに済ませるための仕組み。`.env.example` が雛形。
 - ブリーフィングの内容 (日付・天気・TODO・ひとこと) は `prompts/briefing.md` で定義する。出力は Telegram 1 メッセージに収まるよう 1500 文字以内・プレーンテキスト縛り。
 - `memory/todo.md` は秘書の永続メモリ。ブリーフィングで読み上げるほか、Telegram での会話中に「TODO に追加して」と頼まれたらこのファイルに追記する。セッションの要約・圧縮をまたいで残したい情報はここに書く。
+
+### 定時実行のスケジューラ
+
+- **macOS は launchd (`launchd/com.naruebi.briefing.plist.example`) を使う**。cron は「ログインセッション外で動くためキーチェーンの `claude` ログイン (`/login` で保存した OAuth 情報) を読めない → `Invalid API key`」「スリープ中は発火しない」という制約があり、朝のブリーフィングには不向き。LaunchAgent はログインセッション内で動くためキーチェーンにアクセスでき、スリープからの復帰時にも実行される。
+- plist 内の `__REPO_DIR__` は briefing.sh のある絶対パスに置換して `~/Library/LaunchAgents/` に配置し、`launchctl load` する。即時テストは `launchctl start com.naruebi.briefing`。
+- Linux 等では通常の cron でよい。
+- Desktop/Documents/Downloads 配下に置くと TCC (フルディスクアクセス) の制約に当たりやすい。ホーム直下など保護対象外に置くのが無難。
 
 ## 必須の前提
 

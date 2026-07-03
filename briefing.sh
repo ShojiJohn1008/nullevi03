@@ -1,19 +1,29 @@
 #!/bin/sh
 # 朝のブリーフィングを生成して Telegram に送信する。
-# cron から毎朝実行する想定:
-#   0 7 * * * cd /path/to/nullevi03 && TELEGRAM_BOT_TOKEN=... TELEGRAM_CHAT_ID=... ./briefing.sh
+# macOS では launchd (LaunchAgent) から、Linux では cron から毎朝実行する想定。
 #
-# 環境変数:
+# 設定値 (TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID / BRIEFING_LOCATION) は
+# 次のどちらかで渡す:
+#   1. 同じディレクトリの .env ファイル (推奨。crontab/plist に秘密を書かずに済む)
+#   2. 環境変数 (cron 行に直書きするなど)
+#
+# 設定値:
 #   TELEGRAM_BOT_TOKEN  (必須) BotFather で発行した Bot トークン
 #   TELEGRAM_CHAT_ID    (必須) 送信先チャット ID
 #   BRIEFING_LOCATION   (任意) 天気を調べる地域。デフォルト Tokyo
 
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+cd "$SCRIPT_DIR" || exit 1
+
+# .env があれば読み込む。TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID をここに書けば
+# crontab や launchd の plist に秘密情報を書かずに済む (.env は git 管理外)。
+if [ -f .env ]; then
+  . ./.env
+fi
+
 TELEGRAM_BOT_TOKEN="${TELEGRAM_BOT_TOKEN:-}"
 TELEGRAM_CHAT_ID="${TELEGRAM_CHAT_ID:-}"
 BRIEFING_LOCATION="${BRIEFING_LOCATION:-Tokyo}"
-
-SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-cd "$SCRIPT_DIR" || exit 1
 
 send_telegram() {
   text="$1"
