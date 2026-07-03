@@ -16,6 +16,50 @@ AI秘書っす。
 
 - 終わり
 
+## 会話できる秘書 (boot.sh)
+
+Telegram で話しかけると Claude Code が応答する常駐モード。初回だけプラグインの設定が要る。
+
+### 前提
+
+- Claude Code v2.1.80 以上 (`claude --version` で確認、古ければ更新)
+- Bun (`bun --version` で確認。無ければ `curl -fsSL https://bun.sh/install | bash`)
+- BotFather で作った Bot のトークン (`.env` の `TELEGRAM_BOT_TOKEN`)
+
+### 初回セットアップ (一度だけ)
+
+```sh
+claude        # ふつうに対話モードで起動
+```
+
+起動したら中で順に:
+
+```
+/plugin install telegram@claude-plugins-official
+/reload-plugins
+/telegram:configure <Botトークン>
+```
+
+(`plugin not found` と言われたら `/plugin marketplace update claude-plugins-official` してから再試行)
+
+いったん claude を抜けて、常駐を開始:
+
+```sh
+./boot.sh
+```
+
+### ペアリング (一度だけ)
+
+1. Telegram で自分の Bot に何かメッセージを送る
+2. Bot が **6桁のペアリングコード**を返してくる
+3. boot.sh が動かしている claude のターミナル側で:
+   ```
+   /telegram:access pair <コード>
+   /telegram:access policy allowlist
+   ```
+
+これで完了。以降は Telegram に話しかけるだけで秘書が応答する。boot.sh は claude が落ちても 5 秒後に自動で再起動する。
+
 ## 朝のブリーフィング
 
 毎朝、日付・天気・TODO をまとめて Telegram に送ってくれるやつ。

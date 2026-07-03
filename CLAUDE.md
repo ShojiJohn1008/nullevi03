@@ -15,6 +15,8 @@ TELEGRAM_BOT_TOKEN=... TELEGRAM_CHAT_ID=... ./boot.sh
 - `boot.sh` は `claude --dangerously-skip-permissions --channels plugin:telegram@claude-plugins-official -c` を無限ループで実行し、終了したら 5 秒待って再起動する。
 - 初回起動と再起動の各イベントを Telegram にプッシュ通知する (`notify_telegram` 関数)。
 - `-c` フラグで前回セッションを継続するため、会話状態は Claude Code 側のセッション履歴に依存する。
+- 設定値は他のスクリプトと同じく `.env` から読み込む。`TELEGRAM_BOT_TOKEN` は telegram プラグイン (claude の子プロセス) からも参照されるため export している。
+- **channels は起動フラグだけでは動かない**。初回に telegram プラグインの導入 (`/plugin install telegram@claude-plugins-official` → `/telegram:configure <トークン>`) と、Telegram 側からのペアリング (`/telegram:access pair <コード>` → `/telegram:access policy allowlist`) が必要。要 Claude Code v2.1.80+ と Bun。手順の詳細は README を参照。トークンは `~/.claude/channels/telegram/.env`、許可リストは `~/.claude/channels/telegram/access.json` に保存される。
 
 ## 朝のブリーフィング
 
