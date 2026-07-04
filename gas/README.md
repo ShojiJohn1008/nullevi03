@@ -65,6 +65,16 @@ python3 gcal.py list 2026-07-10
 「デプロイ」→「デプロイを管理」→ 対象の**鉛筆(編集)**→ バージョンを「新バージョン」→「デプロイ」。
 「新しいデプロイ」を押すと URL が変わってしまうので注意。
 
+## Google ToDo (Tasks) を使うには — サービスを1つ追加
+
+`tasks` / `addtask` / `donetask` を使う場合のみ、Apps Script に Tasks API を足す:
+
+1. エディタ左の「サービス」の「＋」をクリック
+2. 一覧から **「Google Tasks API」** を選んで「追加」
+3. これで `Tasks` が使えるようになる。**追加後に必ず再デプロイ**(下記)
+
+カレンダー機能 (list/hold/create/delete) だけなら、この手順は不要。
+
 ## できること
 
 - `calendars` … 見えているカレンダーの一覧 (共有・購読を含む。ID 調べ用)
@@ -72,6 +82,8 @@ python3 gcal.py list 2026-07-10
 - `hold` … 「【仮】」付き・灰色の仮押さえを作る (返事待ちの二重ブッキング防止)
 - `create` … 通常の予定を作る
 - `delete` … イベントIDで削除
+- `tasks` … Google ToDo の未完了タスク一覧
+- `addtask` … Google ToDo に追加 / `donetask` … 完了にする
 
 ### 共有カレンダーも見る
 

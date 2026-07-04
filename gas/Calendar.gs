@@ -15,7 +15,13 @@
  *   hold      … 仮押さえを作成 (【仮】+ 灰色)  {title, start, end, description?, calendarId?}
  *   create    … 通常の予定を作成              {title, start, end, description?, calendarId?}
  *   delete    … 予定を ID で削除              {id, calendarId?}
+ *   tasks     … Google ToDo (未完了) の一覧    {}
+ *   addtask   … Google ToDo に追加            {title, due?, notes?, tasklist?}
+ *   donetask  … ToDo を完了にする             {id, tasklist?}
  * start / end は ISO 文字列 (例 "2026-07-10T10:00:00+09:00" や "2026-07-10T10:00")。
+ *
+ * tasks/addtask/donetask を使うには、エディタ左の「サービス」で
+ * 「Google Tasks API」を追加しておくこと (詳細は gas/README.md)。
  */
 
 function doPost(e) {
@@ -32,6 +38,9 @@ function doPost(e) {
       case 'hold':      return json(createEvent(body, true));
       case 'create':    return json(createEvent(body, false));
       case 'delete':    return json(deleteEvent(body));
+      case 'tasks':     return json(listTasks());
+      case 'addtask':   return json(addTask(body));
+      case 'donetask':  return json(doneTask(body));
       default:          return json({ ok: false, error: 'unknown action: ' + body.action });
     }
   } catch (err) {
@@ -129,6 +138,51 @@ function deleteEvent(body) {
   var title = ev.getTitle();
   ev.deleteEvent();
   return { ok: true, deleted: title };
+}
+
+// ---- Google ToDo (Tasks) ----
+// 使うにはエディタ左「サービス」で「Google Tasks API」を追加すること。
+
+// 未完了タスクを全リストから集めて返す (期限の早い順、期限なしは後ろ)
+function listTasks() {
+  var lists = (Tasks.Tasklists.list().items) || [];
+  var out = [];
+  lists.forEach(function (tl) {
+    var res = Tasks.Tasks.list(tl.id, { showCompleted: false, maxResults: 100 });
+    (res.items || []).forEach(function (t) {
+      if (!t.title) { return; }   // 空タイトルの区切り行は除く
+      out.push({
+        id: t.id,
+        tasklist: tl.id,
+        tasklistName: tl.title,
+        title: t.title,
+        due: t.due || null,
+        notes: t.notes || null
+      });
+    });
+  });
+  out.sort(function (a, b) {
+    if (a.due && b.due) { return a.due < b.due ? -1 : (a.due > b.due ? 1 : 0); }
+    if (a.due) { return -1; }
+    if (b.due) { return 1; }
+    return 0;
+  });
+  return { ok: true, count: out.length, tasks: out };
+}
+
+function addTask(body) {
+  var tasklist = body.tasklist || '@default';
+  var resource = { title: body.title || '(無題)' };
+  if (body.notes) { resource.notes = body.notes; }
+  if (body.due) { resource.due = new Date(body.due).toISOString(); }  // 日付部分のみ使われる
+  var t = Tasks.Tasks.insert(resource, tasklist);
+  return { ok: true, id: t.id, title: t.title, due: t.due || null };
+}
+
+function doneTask(body) {
+  var tasklist = body.tasklist || '@default';
+  Tasks.Tasks.patch({ status: 'completed' }, tasklist, body.id);
+  return { ok: true, completed: body.id };
 }
 
 function json(obj) {

@@ -25,6 +25,10 @@ TELEGRAM_BOT_TOKEN="${TELEGRAM_BOT_TOKEN:-}"
 TELEGRAM_CHAT_ID="${TELEGRAM_CHAT_ID:-}"
 BRIEFING_LOCATION="${BRIEFING_LOCATION:-Tokyo}"
 
+# claude の子プロセス (gcal.py) がカレンダー/ToDo を読めるよう export しておく。
+# 未設定なら briefing.md 側でその項目をスキップする。
+export CAL_WEBAPP_URL CAL_SHARED_SECRET CAL_EXTRA_CALENDAR_IDS CAL_WRITE_CALENDAR_ID
+
 send_telegram() {
   text="$1"
   curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \

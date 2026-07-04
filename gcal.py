@@ -10,6 +10,9 @@ CAL_SHARED_SECRET (Apps Script 側に設定した合言葉) を使う。標準�
   gcal.py hold   <タイトル> <開始> <終了> [説明]  # 仮押さえ (【仮】+ 灰色)
   gcal.py create <タイトル> <開始> <終了> [説明]  # 通常の予定
   gcal.py delete <イベントID>
+  gcal.py tasks                               # Google ToDo (未完了) の一覧
+  gcal.py addtask <タイトル> [期限] [メモ]      # Google ToDo に追加 (期限は 2026-07-10 形式)
+  gcal.py donetask <タスクID>                  # ToDo を完了にする
 
 日時は ISO 形式 (例 "2026-07-10T10:00" や "2026-07-10T10:00:00+09:00")。
 list の日付だけ指定 (例 "2026-07-10") はその日の 00:00〜翌 00:00 として扱う。
@@ -92,6 +95,23 @@ def main():
             sys.stderr.write("イベントIDを指定してください\n")
             sys.exit(1)
         result = call({"action": "delete", "id": args[0]})
+    elif action == "tasks":
+        result = call({"action": "tasks"})
+    elif action == "addtask":
+        if not args:
+            sys.stderr.write("タスクのタイトルを指定してください\n")
+            sys.exit(1)
+        payload = {"action": "addtask", "title": args[0]}
+        if len(args) > 1:
+            payload["due"] = args[1]
+        if len(args) > 2:
+            payload["notes"] = args[2]
+        result = call(payload)
+    elif action == "donetask":
+        if not args:
+            sys.stderr.write("タスクIDを指定してください\n")
+            sys.exit(1)
+        result = call({"action": "donetask", "id": args[0]})
     else:
         sys.stderr.write("不明なコマンド: %s\n" % action)
         sys.exit(1)
