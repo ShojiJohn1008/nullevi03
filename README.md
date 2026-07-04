@@ -164,6 +164,31 @@ MAIL_ACCOUNT_2_HOST=imap.example2.com
 - 独自ドメインの `_HOST` はメール提供元の IMAP サーバー名 (例 `imap.example2.com`)
 - 送信者フィルタ `MAIL_SENDERS` は全アカウント共通で効く
 
+## カレンダー連携・日程調整
+
+Google カレンダーの読み書き。日程調整メールの候補日と自分の予定を照合して返信下書きを作ったり、仮押さえを入れたりできる。
+
+```sh
+python3 gcal.py list 2026-07-10                                   # 予定一覧 (空き確認)
+python3 gcal.py hold "打合せ" 2026-07-10T10:00 2026-07-10T11:00   # 仮押さえ (【仮】)
+python3 gcal.py create "歯医者" 2026-07-10T15:00 2026-07-10T16:00 # 通常予定
+python3 gcal.py delete <イベントID>
+```
+
+### 準備
+
+カレンダー書き込みには Google 認証が必要だが、Google Cloud の面倒な OAuth 設定を避けて、**Apps Script のウェブアプリ**を橋渡しにする方式を採る (トークン失効なし・保守ほぼゼロ)。
+
+1. `gas/README.md` の手順で Apps Script を公開する (スクリプトを貼る → ウェブアプリ公開 → 一度承認)
+2. 公開 URL と合言葉を `.env` に入れる:
+
+```
+CAL_WEBAPP_URL=https://script.google.com/macros/s/xxxxx/exec
+CAL_SHARED_SECRET=Apps Script に設定したのと同じ合言葉
+```
+
+Telegram で「この日程調整メール、返信案作って」と頼めば、秘書が予定を照合して下書きを作る (メール送信は自分で確認して行う)。
+
 ## トラブルシューティング
 
 - AIに聞け！俺には聞くな！！
