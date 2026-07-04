@@ -143,6 +143,27 @@ launchctl start com.naruebi.mailsummary   # 時刻を待たず即テスト
 - 要約のしかたは `prompts/mail_summary.md` を編集して調整する
 - 一度要約したメールは `mail_state.txt` に記録され、翌朝重複して拾わない
 
+#### 複数の受信箱から集める
+
+`MAIL_SENDERS` は「1つの受信箱の中で、誰からのメールを見るか」の絞り込み。
+別々の受信箱 (アカウント) から横断的に集めたいときは、`GMAIL_ADDRESS` /
+`GMAIL_APP_PASSWORD` の代わりに番号付きで並べる:
+
+```
+MAIL_ACCOUNT_1_ADDRESS=you@gmail.com
+MAIL_ACCOUNT_1_PASSWORD=abcdefghijklmnop
+MAIL_ACCOUNT_1_HOST=imap.gmail.com
+
+MAIL_ACCOUNT_2_ADDRESS=you@example2.com
+MAIL_ACCOUNT_2_PASSWORD=xxxxxxxxxxxx
+MAIL_ACCOUNT_2_HOST=imap.example2.com
+```
+
+- 3つ目以降は `_3_`, `_4_` と番号を増やす。`_HOST` 省略時は `imap.gmail.com`
+- 各受信箱ごとにアプリパスワード (Gmail 以外はその provider の IMAP パスワード) が要る
+- 独自ドメインの `_HOST` はメール提供元の IMAP サーバー名 (例 `imap.example2.com`)
+- 送信者フィルタ `MAIL_SENDERS` は全アカウント共通で効く
+
 ## トラブルシューティング
 
 - AIに聞け！俺には聞くな！！

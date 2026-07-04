@@ -38,6 +38,7 @@ TELEGRAM_BOT_TOKEN=... TELEGRAM_CHAT_ID=... [BRIEFING_LOCATION=Tokyo] ./briefing
 - 特定の送信者からの新着メール (本文 + PDF/Excel/CSV 添付) を要約して Telegram に送る。朝のブリーフィングの少し後 (例 7:05) に launchd/cron から実行する想定。
 - `fetch_mail.py` (Python 標準ライブラリのみ) が Gmail に **IMAP + アプリパスワード**で接続し、対象メールと添付を `mail_work/` に保存する。`imap.select("INBOX", readonly=True)` で開くのでメールを既読にも変更もしない。OAuth (Google Cloud) を避けて設定を最小化するための選択。
 - 認証等は `.env` から読む: `GMAIL_ADDRESS` / `GMAIL_APP_PASSWORD` / `MAIL_SENDERS` (カンマ区切り) / `MAIL_LOOKBACK_DAYS` (既定3)。`GMAIL_APP_PASSWORD` は Google が空白区切りで表示するが、`.env` では**空白を詰めて**書く (空白を残すと `.env` の source が壊れる)。`fetch_mail.py` 側でも空白は除去している。
+- **複数の受信箱**を横断する場合は `MAIL_ACCOUNT_N_ADDRESS` / `_PASSWORD` / `_HOST` (省略時 `imap.gmail.com`) を番号付きで並べる。1つでもあれば `GMAIL_*` より優先。`get_accounts()` が組み立てる。あるアカウントの接続に失敗しても他は続行し、`index.md` の「接続エラー」欄に記録して要約で知らせる。全滅かつ0件のときだけ非ゼロ終了する。`MAIL_SENDERS` は全アカウント共通の送信者フィルタ。
 - `mail_summary.sh` が `fetch_mail.py` → `claude -p` (`prompts/mail_summary.md` の指示で要約) → Telegram 送信、の順で動く。対象メール 0 件なら claude を呼ばずに「新着なし」を送って終了する。
 - 処理済みメールは `mail_state.txt` (Message-ID を記録、git 管理外) で重複を防ぐ。`mail_work/` にはメール本文・添付が入るので `.gitignore` 済み。**この2つは絶対にコミットしない**。
 - Excel (.xlsx) の読み取りには pandas / openpyxl が必要 (`pip3 install pandas openpyxl`)。PDF は claude が直接読め、CSV はテキストとして読める。
