@@ -21,7 +21,13 @@ list の日付だけ指定 (例 "2026-07-10") はその日の 00:00〜翌 00:00 
   1. `gcal.py calendars` でカレンダーの ID を調べる
   2. .env の CAL_EXTRA_CALENDAR_IDS に、そのIDをカンマ区切りで書く
   list はメイン + それらを合算して返す。
-書き込み先を共有カレンダーにしたいときは .env の CAL_WRITE_CALENDAR_ID にID を入れる。
+
+予定ごとに書き込み先を選ぶ (hold / create / delete):
+  --cal <名前 or ID> を付けると、その回だけ書き込み先を変えられる。
+  例) gcal.py create "定例MTG" 2026-07-10T10:00 2026-07-10T11:00 --cal チーム
+      gcal.py hold   "打合せ"  2026-07-10T14:00 2026-07-10T15:00           # 個人 (既定)
+  名前は `gcal.py calendars` の名前と照合する。ID (@ を含む) はそのまま使う。
+  --cal 省略時は .env の CAL_WRITE_CALENDAR_ID があればそこ、無ければ個人カレンダー。
 """
 
 import json
@@ -47,6 +53,52 @@ def call(payload):
         return json.loads(resp.read().decode("utf-8"))
 
 
+def pop_cal_flag(args):
+    """args から --cal <値> / --cal=<値> を取り出し、(残りの args, 値) を返す。"""
+    cal = None
+    rest = []
+    i = 0
+    while i < len(args):
+        if args[i] == "--cal" and i + 1 < len(args):
+            cal = args[i + 1]
+            i += 2
+            continue
+        if args[i].startswith("--cal="):
+            cal = args[i][len("--cal="):]
+            i += 1
+            continue
+        rest.append(args[i])
+        i += 1
+    return rest, cal
+
+
+def resolve_calendar(value):
+    """--cal の値をカレンダーIDに解決する。@ を含めばID、なければ名前で照合。"""
+    if not value:
+        return None
+    if "@" in value:
+        return value
+    result = call({"action": "calendars"})
+    cals = result.get("calendars", [])
+    for c in cals:                       # 完全一致を優先
+        if c.get("name") == value:
+            return c["id"]
+    for c in cals:                       # 次に部分一致
+        if value in c.get("name", ""):
+            return c["id"]
+    names = ", ".join(c.get("name", "") for c in cals)
+    sys.stderr.write(
+        "カレンダー '%s' が見つかりません。候補: %s\n" % (value, names))
+    sys.exit(1)
+
+
+def target_calendar(cal_flag):
+    """--cal 指定を優先し、無ければ .env の CAL_WRITE_CALENDAR_ID を使う。"""
+    if cal_flag:
+        return resolve_calendar(cal_flag)
+    return os.environ.get("CAL_WRITE_CALENDAR_ID", "").strip() or None
+
+
 def day_bounds(s):
     """"2026-07-10" のような日付だけの指定を 1 日分の範囲に広げる。"""
     if len(s) == 10 and s.count("-") == 2:
@@ -59,7 +111,7 @@ def main():
         sys.stderr.write(__doc__)
         sys.exit(1)
     action = sys.argv[1]
-    args = sys.argv[2:]
+    args, cal_flag = pop_cal_flag(sys.argv[2:])
 
     if action == "calendars":
         result = call({"action": "calendars"})
@@ -86,7 +138,7 @@ def main():
             "end": args[2],
             "description": args[3] if len(args) > 3 else "",
         }
-        write_cal = os.environ.get("CAL_WRITE_CALENDAR_ID", "").strip()
+        write_cal = target_calendar(cal_flag)
         if write_cal:
             payload["calendarId"] = write_cal
         result = call(payload)
@@ -94,7 +146,11 @@ def main():
         if not args:
             sys.stderr.write("イベントIDを指定してください\n")
             sys.exit(1)
-        result = call({"action": "delete", "id": args[0]})
+        payload = {"action": "delete", "id": args[0]}
+        del_cal = target_calendar(cal_flag)
+        if del_cal:
+            payload["calendarId"] = del_cal
+        result = call(payload)
     elif action == "tasks":
         result = call({"action": "tasks"})
     elif action == "addtask":
