@@ -46,6 +46,7 @@ TELEGRAM_BOT_TOKEN=... TELEGRAM_CHAT_ID=... [BRIEFING_LOCATION=Tokyo] ./briefing
 ## カレンダー連携・日程調整
 
 ```sh
+python3 gcal.py calendars                             # カレンダー一覧 (共有含む。ID 調べ用)
 python3 gcal.py list 2026-07-10                       # 予定一覧 (空き確認)
 python3 gcal.py hold "打合せ" 2026-07-10T10:00 2026-07-10T11:00   # 仮押さえ
 python3 gcal.py create "歯医者" 2026-07-10T15:00 2026-07-10T16:00 # 通常予定
@@ -53,6 +54,7 @@ python3 gcal.py delete <イベントID>
 ```
 
 - `gcal.py` (Python 標準ライブラリのみ) が Google カレンダーを読み書きする。裏側は Apps Script のウェブアプリ (`gas/Calendar.gs`) で、`.env` の `CAL_WEBAPP_URL` に POST する。認証は `.env` の `CAL_SHARED_SECRET` と Apps Script 側スクリプトプロパティ `SHARED_SECRET` の一致で行う。設置手順は `gas/README.md`。
+- **共有カレンダー**も見たい場合は `gcal.py calendars` で ID を調べ、`.env` の `CAL_EXTRA_CALENDAR_IDS` にカンマ区切りで並べる。`list` はメイン + それらを合算して返す (各予定に `calendar` 名が付く)。書き込み先を変えるなら `CAL_WRITE_CALENDAR_ID`。`Calendar.gs` を更新したら Apps Script 側の再デプロイ (デプロイを管理→編集→新バージョン) が必要。
 - **Apps Script 方式を選んだ理由**: カレンダー書き込みには OAuth が必須 (アプリパスワード不可)。MCP + OAuth 方式は「テスト公開のままだと refresh token が7日で失効し、朝の自動実行が毎週壊れる」罠がある (本番公開に切り替えれば回避可、個人利用なら審査不要)。Apps Script はトークン管理自体が無く、公開した URL に POST するだけなので保守がほぼゼロ。会話秘書 (boot.sh) からも launchd からも同じように叩ける。
 - `CAL_WEBAPP_URL` と `CAL_SHARED_SECRET` は鍵。`.env` (git 管理外) に置き、漏らさない。URL が漏れても合言葉チェックで守られるが、両方とも秘密扱い。
 - v1 は自分のカレンダーの読み書きまで。**他人へのゲスト招待は未対応**(通知が飛ぶ操作なので、足すときは送信前確認フローとセットにする)。
