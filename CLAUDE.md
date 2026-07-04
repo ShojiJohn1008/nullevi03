@@ -43,6 +43,17 @@ TELEGRAM_BOT_TOKEN=... TELEGRAM_CHAT_ID=... [BRIEFING_LOCATION=Tokyo] ./briefing
 - 処理済みメールは `mail_state.txt` (Message-ID を記録、git 管理外) で重複を防ぐ。`mail_work/` にはメール本文・添付が入るので `.gitignore` 済み。**この2つは絶対にコミットしない**。
 - Excel (.xlsx) の読み取りには pandas / openpyxl が必要 (`pip3 install pandas openpyxl`)。PDF は claude が直接読め、CSV はテキストとして読める。
 
+## 受信メールのトリアージ (日程調整の検知)
+
+```sh
+./mail_triage.sh
+```
+
+- メール要約 (`mail_summary.sh`) が「特定送信者を狙い撃ち」なのに対し、トリアージは**受信箱を広く見て、送信者不問で「オーナーの返信が要りそうなメール (特に日程調整)」を拾う**。日程調整は誰から来るか事前に分からないため、送信者フィルタでは取りこぼすのを補う。朝のブリーフィング・メール要約の後 (例 7:10) に実行する想定。
+- 定期通知・メルマガの洪水を避けるため、`fetch_mail.py --gmail-query` で **Gmail 検索構文 (X-GM-RAW)** を使い `category:primary is:unread newer_than:3d` (既定) に粗く絞る。Gmail のカテゴリ分けが通知/広告の大半を自動除外する。`.env` の `MAIL_TRIAGE_QUERY` で変更可。既読は `is:unread` で自然に外れるので state ファイルは使わない (`--state ""`)。
+- `mail_triage.sh` が fetch → `claude -p` (`prompts/triage.md`) → Telegram。claude は各メールを【無視】(通知/メルマガ) と【要対応】に分類し、**要対応が無ければ本文 `NONE` を返す約束**で、その場合ラッパーは通知しない (静かに終了)。0件のときも同様。
+- 日程調整と判定したら、`gcal.py list` で候補日の空きを確認 → 返信文の下書きを作成 → 空き候補を `gcal.py hold` で個人カレンダーに仮押さえ (同時間帯に既に【仮】があれば作らない)。**メール送信はしない (下書きまで)**。カレンダー/メール認証を子プロセスに渡すため `mail_triage.sh` は `.env` の値を export している。
+
 ## カレンダー連携・日程調整
 
 ```sh

@@ -26,10 +26,13 @@
        (3つ目以降も _3_, _4_ と番号を増やせば足せる)
 
 使い方:
-  python3 fetch_mail.py [作業ディレクトリ]   # 既定は ./mail_work
+  python3 fetch_mail.py [作業ディレクトリ] [オプション]
+    --gmail-query "<Gmail検索>"  … 送信者フィルタの代わりに Gmail 検索構文で絞る
+                                    (トリアージ用。例 "category:primary is:unread newer_than:3d")
+    --state <ファイル>           … 処理済み Message-ID の記録先。"" で無効化 (既定 mail_state.txt)
 
 一度要約したメールを翌朝また拾わないよう、処理済みの Message-ID を
-mail_state.txt に記録して重複を防ぐ。
+状態ファイルに記録して重複を防ぐ (トリアージは is:unread で自然に絞れるので state 無効が既定)。
 """
 
 import email
@@ -132,17 +135,17 @@ def get_accounts():
     return accounts
 
 
-def load_seen():
-    if not os.path.exists(STATE_FILE):
+def load_seen(state_file):
+    if not state_file or not os.path.exists(state_file):
         return set()
-    with open(STATE_FILE, encoding="utf-8") as f:
+    with open(state_file, encoding="utf-8") as f:
         return {line.strip() for line in f if line.strip()}
 
 
-def append_seen(ids):
-    if not ids:
+def append_seen(state_file, ids):
+    if not state_file or not ids:
         return
-    with open(STATE_FILE, "a", encoding="utf-8") as f:
+    with open(state_file, "a", encoding="utf-8") as f:
         for mid in ids:
             f.write(mid + "\n")
 
@@ -183,8 +186,43 @@ def save_message(msg, workdir, seq, mailbox):
                ", ".join(attaches) if attaches else "なし"))
 
 
+def parse_args(argv):
+    """argv から workdir と --gmail-query / --state を取り出す。"""
+    workdir = "mail_work"
+    gmail_query = None
+    state_file = STATE_FILE
+    i = 0
+    positional_seen = False
+    while i < len(argv):
+        a = argv[i]
+        if a == "--gmail-query" and i + 1 < len(argv):
+            gmail_query = argv[i + 1]
+            i += 2
+        elif a == "--state" and i + 1 < len(argv):
+            state_file = argv[i + 1]
+            i += 2
+        elif not positional_seen and not a.startswith("--"):
+            workdir = a
+            positional_seen = True
+            i += 1
+        else:
+            i += 1
+    return workdir, gmail_query, state_file
+
+
+def search_specs(gmail_query, senders, since_str):
+    """imap.search に渡す引数タプルの一覧を返す。
+
+    gmail_query があれば Gmail 検索 (X-GM-RAW) を1回。
+    無ければ従来どおり送信者ごとに FROM + SINCE で検索する。
+    """
+    if gmail_query:
+        return [("X-GM-RAW", '"%s"' % gmail_query)]
+    return [('(FROM "%s" SINCE %s)' % (s, since_str),) for s in senders]
+
+
 def main():
-    workdir = sys.argv[1] if len(sys.argv) > 1 else "mail_work"
+    workdir, gmail_query, state_file = parse_args(sys.argv[1:])
 
     senders_raw = os.environ.get("MAIL_SENDERS", "")
     senders = [s.strip() for s in senders_raw.split(",") if s.strip()]
@@ -197,13 +235,15 @@ def main():
     if not accounts:
         die("メールアカウントが未設定です。GMAIL_ADDRESS/GMAIL_APP_PASSWORD "
             "か MAIL_ACCOUNT_1_ADDRESS 等を .env に設定してください")
-    if not senders:
+    # 送信者フィルタは通常モードのみ必須 (トリアージ = gmail_query 時は不要)
+    if not gmail_query and not senders:
         die("MAIL_SENDERS に対象の送信者アドレスを設定してください")
 
     since = datetime.now() - timedelta(days=lookback)
     since_str = "%02d-%s-%d" % (since.day, MONTHS[since.month - 1], since.year)
+    specs = search_specs(gmail_query, senders, since_str)
 
-    seen = load_seen()
+    seen = load_seen(state_file)
     new_ids = []
     saved = 0
     index_lines = []
@@ -220,9 +260,13 @@ def main():
 
         try:
             imap.select("INBOX", readonly=True)  # readonly で既読フラグを変えない
-            for sender in senders:
-                typ, data = imap.search(
-                    None, '(FROM "%s" SINCE %s)' % (sender, since_str))
+            for spec in specs:
+                try:
+                    typ, data = imap.search(None, *spec)
+                except imaplib.IMAP4.error as e:
+                    # X-GM-RAW は Gmail 以外で失敗する
+                    errors.append("%s の検索に失敗 (%s): %s" % (mailbox, spec, e))
+                    continue
                 if typ != "OK" or not data or not data[0]:
                     continue
                 for num in data[0].split():
@@ -260,7 +304,7 @@ def main():
     with open(os.path.join(workdir, ".count"), "w", encoding="utf-8") as f:
         f.write(str(saved))
 
-    append_seen(new_ids)
+    append_seen(state_file, new_ids)
 
     # 1件も取れず、かつ接続エラーがあるなら失敗として扱う (呼び出し側が通知)
     if saved == 0 and errors:

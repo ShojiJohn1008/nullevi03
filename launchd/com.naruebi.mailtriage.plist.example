@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  macOS 用 LaunchAgent: 毎朝 7:10 に mail_triage.sh を実行する。
+  (ブリーフィング 7:00 / メール要約 7:05 の後にずらしてある)
+
+  導入手順は他の plist と同じ:
+    cp launchd/com.naruebi.mailtriage.plist.example \
+       ~/Library/LaunchAgents/com.naruebi.mailtriage.plist
+    sed -i '' "s#__REPO_DIR__#$(pwd)#g" \
+       ~/Library/LaunchAgents/com.naruebi.mailtriage.plist
+    launchctl load ~/Library/LaunchAgents/com.naruebi.mailtriage.plist
+    launchctl start com.naruebi.mailtriage   # 時刻を待たず即テスト
+
+  リポジトリは Desktop/Documents/Downloads を避け、ホーム直下など
+  保護対象外に置くこと (TCC の Operation not permitted を避けるため)。
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.naruebi.mailtriage</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/sh</string>
+        <string>__REPO_DIR__/mail_triage.sh</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>__REPO_DIR__</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    </dict>
+
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>7</integer>
+        <key>Minute</key>
+        <integer>10</integer>
+    </dict>
+
+    <key>StandardOutPath</key>
+    <string>__REPO_DIR__/mail_triage.log</string>
+    <key>StandardErrorPath</key>
+    <string>__REPO_DIR__/mail_triage.log</string>
+
+    <key>RunAtLoad</key>
+    <false/>
+</dict>
+</plist>
